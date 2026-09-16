@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -13,11 +12,7 @@ var backendCmd = &cobra.Command{
 	Use:   "backend",
 	Short: "Show which firewall backend gowalld detected, and why",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		override := flagBackend
-		if override == "" {
-			override = os.Getenv("GOWALLD_BACKEND")
-		}
-		reason, err := detect.Detect(cmd.Context(), override)
+		reason, err := detect.Detect(cmd.Context(), flagBackend)
 		if reason != nil {
 			fmt.Println("Detection checks:")
 			for _, c := range reason.Checks {

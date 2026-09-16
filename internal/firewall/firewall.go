@@ -90,6 +90,11 @@ type Rule struct {
 type RuleRef struct {
 	ID    string
 	Index int // 1-based, ufw-style; 0 means unset
+
+	// Zone scopes the lookup for FirewalldBackend, which addresses rules
+	// per-zone (ufw has no zones and ignores this field). Empty means the
+	// backend's default zone.
+	Zone string
 }
 
 // Status is the backend's enabled/disabled state and default policy.

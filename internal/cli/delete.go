@@ -14,9 +14,9 @@ var deleteCmd = &cobra.Command{
 	Short:   "Delete a rule by ID (from `gowalld list`) or numbered index",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ref := firewall.RuleRef{ID: args[0]}
+		ref := firewall.RuleRef{ID: args[0], Zone: flagZone}
 		if n, err := strconv.Atoi(args[0]); err == nil {
-			ref = firewall.RuleRef{Index: n}
+			ref = firewall.RuleRef{Index: n, Zone: flagZone}
 		}
 		svc, err := newService(cmd.Context())
 		if err != nil {

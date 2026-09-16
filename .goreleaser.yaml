@@ -1,0 +1,47 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gowalld
+    main: ./cmd/gowalld
+    binary: gowalld
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - "386"
+    goarm:
+      - "7"
+    ldflags:
+      - -s -w
+      - -X github.com/aburaihan-dev/gowalld/internal/version.Version={{.Version}}
+      - -X github.com/aburaihan-dev/gowalld/internal/version.Commit={{.Commit}}
+      - -X github.com/aburaihan-dev/gowalld/internal/version.Date={{.Date}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: aburaihan-dev
+    name: gowalld

@@ -8,9 +8,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"os/user"
 
 	"github.com/aburaihan-dev/gowalld/internal/firewall"
 	"github.com/aburaihan-dev/gowalld/internal/safety"
+	"github.com/aburaihan-dev/gowalld/internal/version"
 )
 
 // ErrCancelled is returned when a confirmation prompt was declined.
@@ -120,7 +123,33 @@ func (s *Service) Reload(ctx context.Context) error {
 }
 
 func (s *Service) Snapshot(ctx context.Context) (*firewall.Snapshot, error) {
-	return s.fw.Snapshot(ctx)
+	snap, err := s.fw.Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	snap.Metadata.GowalldVersion = version.Version
+	if snap.Metadata.Hostname == "" {
+		if h, err := os.Hostname(); err == nil {
+			snap.Metadata.Hostname = h
+		}
+	}
+	if snap.Metadata.CreatedBy == "" {
+		snap.Metadata.CreatedBy = currentUser()
+	}
+	return snap, nil
+}
+
+// currentUser prefers $SUDO_USER, the account that actually ran `sudo`, over
+// the effective user (always "root" once gowalld's own root check passes) —
+// more useful for a backup's audit trail.
+func currentUser() string {
+	if u := os.Getenv("SUDO_USER"); u != "" {
+		return u
+	}
+	if u, err := user.Current(); err == nil {
+		return u.Username
+	}
+	return ""
 }
 
 // Restore always computes the plan; it only applies it (and only then
@@ -146,7 +175,7 @@ func (s *Service) Restore(ctx context.Context, snap *firewall.Snapshot, opts fir
 }
 
 func (s *Service) resolveAndRemove(ctx context.Context, ref firewall.RuleRef) (target firewall.Rule, remaining []firewall.Rule, err error) {
-	rules, err := s.fw.ListRules(ctx, firewall.ListOptions{})
+	rules, err := s.fw.ListRules(ctx, firewall.ListOptions{Zone: ref.Zone})
 	if err != nil {
 		return firewall.Rule{}, nil, err
 	}

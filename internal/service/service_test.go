@@ -36,7 +36,9 @@ func (f *fakeFirewall) DeleteRule(_ context.Context, ref firewall.RuleRef) error
 }
 func (f *fakeFirewall) EditRule(context.Context, firewall.RuleRef, firewall.Rule) error { return nil }
 func (f *fakeFirewall) Reload(context.Context) error                                    { return nil }
-func (f *fakeFirewall) Snapshot(context.Context) (*firewall.Snapshot, error)            { return nil, nil }
+func (f *fakeFirewall) Snapshot(context.Context) (*firewall.Snapshot, error) {
+	return &firewall.Snapshot{Rules: f.rules}, nil
+}
 func (f *fakeFirewall) Restore(context.Context, *firewall.Snapshot, firewall.RestoreOptions) (*firewall.RestorePlan, error) {
 	return nil, nil
 }

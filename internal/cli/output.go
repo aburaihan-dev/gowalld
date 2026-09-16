@@ -46,6 +46,26 @@ func printRulesTable(rules []firewall.Rule) error {
 	return w.Flush()
 }
 
+func printPlan(plan *firewall.RestorePlan) error {
+	switch flagOutput {
+	case "json":
+		return printJSON(plan)
+	case "yaml":
+		return printYAML(plan)
+	default:
+		fmt.Printf("To add (%d):\n", len(plan.ToAdd))
+		if err := printRulesTable(plan.ToAdd); err != nil {
+			return err
+		}
+		fmt.Printf("\nTo remove (%d):\n", len(plan.ToRemove))
+		if err := printRulesTable(plan.ToRemove); err != nil {
+			return err
+		}
+		fmt.Printf("\nUnchanged: %d rule(s)\n", len(plan.Unchanged))
+		return nil
+	}
+}
+
 func printStatus(status *firewall.Status) error {
 	switch flagOutput {
 	case "json":
