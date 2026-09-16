@@ -24,6 +24,7 @@ const (
 	viewList viewState = iota
 	viewForm
 	viewConfirmDelete
+	viewPortToggle
 )
 
 type Model struct {
@@ -39,6 +40,7 @@ type Model struct {
 
 	form         formModel
 	deleteTarget firewall.Rule
+	toggle       portToggleModel
 
 	message string
 	err     error
@@ -108,6 +110,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFormKey(msg)
 	case viewConfirmDelete:
 		return m.handleConfirmKey(msg)
+	case viewPortToggle:
+		return m.handlePortToggleKey(msg)
 	default:
 		return m.handleListKey(msg)
 	}
@@ -135,6 +139,11 @@ func (m Model) handleListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.state = viewConfirmDelete
 			m.err = nil
 		}
+		return m, nil
+	case "p":
+		m.toggle = newPortToggle(m.defaultZone())
+		m.state = viewPortToggle
+		m.err = nil
 		return m, nil
 	case "r":
 		m.message = ""
@@ -182,6 +191,64 @@ func (m Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+func (m Model) handlePortToggleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "esc" {
+		m.state = viewList
+		return m, nil
+	}
+
+	if m.toggle.step == toggleStepConfirm {
+		if msg.String() != "y" && msg.String() != "Y" {
+			m.state = viewList
+			return m, nil
+		}
+		m.state = viewList
+		if m.toggle.match != nil {
+			ref := firewall.RuleRef{ID: m.toggle.match.ID, Zone: m.toggle.match.Zone}
+			return m, deleteRuleCmd(m.ctx, m.svc, ref)
+		}
+		source := strings.TrimSpace(m.toggle.source.Value())
+		if strings.EqualFold(source, "any") {
+			source = ""
+		}
+		rule := firewall.Rule{
+			Action:      firewall.Allow,
+			Direction:   firewall.In,
+			Protocol:    m.toggle.parsedProto,
+			Port:        m.toggle.parsedPort,
+			ServiceName: m.toggle.parsedService,
+			Source:      source,
+			Zone:        m.toggle.zone,
+		}
+		return m, addRuleCmd(m.ctx, m.svc, rule)
+	}
+
+	if msg.String() == "enter" {
+		switch m.toggle.step {
+		case toggleStepPort:
+			m.toggle.resolvePort(m.rules)
+			if m.toggle.err != nil {
+				return m, nil
+			}
+			if m.toggle.match != nil {
+				m.toggle.step = toggleStepConfirm
+			} else {
+				m.toggle.step = toggleStepSource
+			}
+			m.toggle.focusStep()
+			return m, nil
+		case toggleStepSource:
+			m.toggle.step = toggleStepConfirm
+			m.toggle.focusStep()
+			return m, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	m.toggle, cmd = m.toggle.Update(msg)
+	return m, cmd
+}
+
 func (m Model) selectedRule() (firewall.Rule, bool) {
 	idx := m.table.Cursor()
 	if idx < 0 || idx >= len(m.rules) {
@@ -205,6 +272,8 @@ func (m Model) View() string {
 		return warnStyle.Render(fmt.Sprintf(
 			"Delete rule: %s %s from %s?", m.deleteTarget.Action, targetLabel(m.deleteTarget), sourceLabel(m.deleteTarget),
 		)) + "\n\n" + helpStyle.Render("y: confirm  •  any other key: cancel")
+	case viewPortToggle:
+		return m.toggle.View()
 	default:
 		return m.renderList()
 	}
@@ -220,7 +289,7 @@ func (m Model) renderList() string {
 	case m.message != "":
 		b.WriteString(okStyle.Render(m.message) + "\n")
 	}
-	b.WriteString(helpStyle.Render("a: add  •  e: edit  •  d: delete  •  r: refresh  •  q: quit"))
+	b.WriteString(helpStyle.Render("a: add  •  e: edit  •  d: delete  •  p: toggle port  •  r: refresh  •  q: quit"))
 	return b.String()
 }
 

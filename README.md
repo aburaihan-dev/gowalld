@@ -129,6 +129,17 @@ gowalld auto-detects which backend is active; override with `--backend firewalld
 | `backend` | Show which firewall backend gowalld detected, and why |
 | `tui` | Launch the interactive rule browser/editor |
 
+### Interactive mode (`gowalld tui`)
+
+| Key | Action |
+|---|---|
+| `a` | Add a rule (full form: action, target, source, comment) |
+| `e` | Edit the selected rule |
+| `d` | Delete the selected rule (asks to confirm) |
+| `p` | **Toggle a port** — the quick, question-at-a-time flow: enter a port or service name, gowalld tells you whether it's currently open or closed, and asks a single yes/no question to flip it (asking for a source restriction first if you're opening it) |
+| `r` | Refresh |
+| `q` | Quit |
+
 Run `gowalld <command> --help` for a command's full flags. Global flags (apply to every command):
 
 | Flag | Description |
