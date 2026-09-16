@@ -72,10 +72,16 @@ func buildRichRule(rule firewall.Rule) (string, error) {
 	case rule.ServiceName != "":
 		fmt.Fprintf(&b, ` service name="%s"`, rule.ServiceName)
 	case rule.Port != "":
-		if rule.Protocol == "" {
-			return "", fmt.Errorf("port %q needs an explicit protocol (tcp or udp) to become a firewalld rich rule", rule.Port)
+		// Rich rules require an explicit protocol, unlike --add-port (see
+		// formatPort below) which defaults a bare port to tcp. Default here
+		// too so a comment or a source restriction — which both force the
+		// rich-rule path — doesn't turn a previously-fine bare port number
+		// into an error.
+		proto := rule.Protocol
+		if proto == "" {
+			proto = firewall.TCP
 		}
-		fmt.Fprintf(&b, ` port port="%s" protocol="%s"`, rule.Port, rule.Protocol)
+		fmt.Fprintf(&b, ` port port="%s" protocol="%s"`, rule.Port, proto)
 	}
 
 	action, err := richAction(rule.Action)

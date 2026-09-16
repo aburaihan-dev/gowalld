@@ -81,9 +81,30 @@ func TestBuildMutationArgsRejectsInterface(t *testing.T) {
 	}
 }
 
-func TestBuildRichRulePortWithoutProtocolErrors(t *testing.T) {
-	_, err := buildMutationArgs(firewall.Rule{Action: firewall.Allow, Port: "22", Source: "10.0.0.0/8"}, "public", "add")
-	if err == nil {
-		t.Fatal("expected an error for a port without a protocol in rich-rule form")
+// A bare port with no protocol is valid input (ParseTarget accepts "22" on
+// its own), and the simple --add-port form already defaults it to tcp; the
+// rich-rule form — forced by a Source restriction or, as in the TUI's add
+// form, a Comment — must default the same way instead of erroring, or
+// adding a comment to a plain port number would break a previously-working
+// rule.
+func TestBuildRichRulePortWithoutProtocolDefaultsToTCP(t *testing.T) {
+	got, err := buildMutationArgs(firewall.Rule{Action: firewall.Allow, Port: "22", Source: "10.0.0.0/8"}, "public", "add")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := `--zone=public --add-rich-rule=rule family="ipv4" source address="10.0.0.0/8" port port="22" protocol="tcp" accept`
+	if joined := strings.Join(got, " "); joined != want {
+		t.Errorf("buildMutationArgs() = %q, want %q", joined, want)
+	}
+}
+
+func TestBuildRichRuleBarePortWithCommentDefaultsToTCP(t *testing.T) {
+	got, err := buildMutationArgs(firewall.Rule{Action: firewall.Allow, Port: "22", Comment: "SSH admin"}, "public", "add")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := `--zone=public --add-rich-rule=rule family="ipv4" port port="22" protocol="tcp" accept comment="SSH admin"`
+	if joined := strings.Join(got, " "); joined != want {
+		t.Errorf("buildMutationArgs() = %q, want %q", joined, want)
 	}
 }
